@@ -1,0 +1,19 @@
+# Local prepare scratch
+.ocx-mirror/
+prepare-output/
+
+# Local artifacts
+*.tar.xz
+*.tar.gz
+*.zip
+run-summary.json
+junit/
+
+# Python
+__pycache__/
+*.pyc
+
+# Editor
+.vscode/
+.idea/
+.serena/

@@ -1,0 +1,120 @@
+extends: ../mirror-base.yml
+
+name: go
+
+# Logical index package `golang/go` at the physical path
+# `ghcr.io/ocx-contrib/golang/go` — slash segments, never hyphen-flattened.
+# The first segment must be this repo's own GitHub owner: GITHUB_TOKEN only
+# authorises packages owned by the repo the workflow runs in.
+target:
+  registry: ghcr.io
+  repository: ocx-contrib/golang/go
+
+# Go publishes its binaries on go.dev/dl, not GitHub Releases (the golang/go
+# repo carries tags but no release assets). The canonical download index is
+# `https://go.dev/dl/?mode=json&include=all`; scripts/generate.py reshapes it
+# into a url_index. Download URLs point at dl.google.com/go/ — the CDN the
+# go.dev download links resolve to, with no redirect in between.
+#
+# `command` resolves against THIS spec's directory, so the path is
+# `scripts/generate.py` and not `go/scripts/generate.py`.
+source:
+  type: url_index
+  generator:
+    command: ["uv", "run", "scripts/generate.py"]
+    timeout_seconds: 240
+
+# ─── libc gate (Phase 3.5) — the evidence, not the conclusion ───────────────
+#
+# Go links its Linux release binaries statically — upstream publishes ONE
+# Linux build per arch and no musl/glibc split to choose between.
+# Byte-measured 2026-08-03 on both executables from both Linux go1.26.5
+# tarballs:
+#
+#   go1.26.5.linux-amd64.tar.gz  go/bin/go     ELF x86-64, statically linked
+#                                              readelf -l | grep INTERP → (none)
+#                                go/bin/gofmt  ELF x86-64, statically linked, same
+#   go1.26.5.linux-arm64.tar.gz  go/bin/go     ELF aarch64, statically linked, same
+#                                go/bin/gofmt  ELF aarch64, statically linked, same
+#
+# No PT_INTERP means the artifacts require nothing of the host, so both Linux
+# keys are BARE — no `+libc.*` suffix. The container legs (ubuntu + alpine +
+# fedora) in ../mirror-base.yml are what turn that claim into evidence rather
+# than an assertion.
+#
+# ─── Resolution, verified BOTH ways (2026-08-03) ────────────────────────────
+#
+# Filenames are uniform across the whole range — `go<ver>.<os>-<arch>.tar.gz`
+# (linux/darwin) and `.zip` (windows). Checked against the go.dev index for
+# EVERY in-range version (33, go1.24.0 → go1.26.5): each declared platform
+# matches exactly one archive, and every version carries all six os/arch
+# archives (windows/arm64 included — upstream ships it since go1.17). The `$`
+# anchor keeps the `.sha256` sidecars out. Upstream also ships 386/armv6l/
+# mips*/ppc64*/riscv64/s390x and BSD/aix/illumos/plan9/solaris archives; the
+# generator never emits them.
+#
+# Incremental rollout (Phase 10): linux first; darwin lands in pass 2 and
+# windows in pass 3 — uncomment below and regenerate CI.
+assets:
+  linux/amd64:
+    - "^go.*\\.linux-amd64\\.tar\\.gz$"
+  linux/arm64:
+    - "^go.*\\.linux-arm64\\.tar\\.gz$"
+  # darwin/amd64:
+  #   - "^go.*\\.darwin-amd64\\.tar\\.gz$"
+  # darwin/arm64:
+  #   - "^go.*\\.darwin-arm64\\.tar\\.gz$"
+  # windows/amd64:
+  #   - "^go.*\\.windows-amd64\\.zip$"
+  # windows/arm64:
+  #   - "^go.*\\.windows-arm64\\.zip$"
+
+asset_type:
+  # Every archive wraps its payload in a single `go/` top directory with
+  # `bin/`, `src/`, `pkg/`, `lib/` inside (verified on linux-amd64, linux-arm64,
+  # darwin-arm64 tarballs and the windows-amd64 zip, at both ends of the version
+  # range), so one component is stripped to put `bin/` at the content root.
+  type: archive
+  strip_components: 1
+
+# The binary set is `go` + `gofmt` in bin/, identical on every platform and at
+# both ends of the range (verified on go1.24.0 and go1.26.5 listings). `verify`
+# turns the hand-list in metadata.json into a regression test: an upstream
+# archive rearrangement reds the run instead of drifting silently.
+bin_scan: verify
+
+metadata:
+  default: metadata.json
+
+catalog:
+  # Resolves against this spec's own directory, and keeping the logo here puts
+  # it inside this workflow's `go/**` path trigger — a repo-root logo.* sits in
+  # no path filter and replacing it would publish nothing.
+  # CATALOG.md is found by the default probe beside this file.
+  logo: logo.svg
+
+versions:
+  # go1.24.0 is the floor — one minor line beyond upstream's two supported
+  # release lines (1.25, 1.26 as of 2026-08). Everything below stays with
+  # upstream. All 33 in-range versions carry all six published platforms.
+  min: "1.24.0"
+  new_per_run: 5
+  poll_interval: "0 */6 * * *"
+
+tests:
+  # `script:` resolves from the REPOSITORY ROOT — unlike `metadata.default` and
+  # `catalog.logo` above, which resolve against this spec's own directory.
+  - name: smoke
+    script: go/tests/smoke.star
+
+annotations:
+  # From the Phase 1.5 license gate:
+  #   $ gh api repos/golang/go/license --jq '.license.spdx_id'
+  #   BSD-3-Clause
+  org.opencontainers.image.licenses: "BSD-3-Clause"
+
+announce:
+  # Spelled out, not derived from target.repository — the logical name and the
+  # physical path are related by convention only.
+  package: golang/go
+  fork: ocx-contrib/index

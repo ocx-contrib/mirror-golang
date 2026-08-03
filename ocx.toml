@@ -1,0 +1,17 @@
+#:schema https://ocx.sh/schemas/project/v1.json
+# OCX project toolchain for the mirror-golang sibling repo.
+#
+# `cli` + `mirror` are the OCX pipeline tools, pinned to the FLOATING MINOR so a
+# plain `ocx update` picks up patches but never crosses a 0.x minor — that is
+# where breaking changes land (`lock_version` moved 1→2→3 across
+# 0.3.6/0.4.3/0.5.0). Concrete digests belong in `ocx.lock`, never here.
+#
+# `uv` is the runtime for the url_index generator (`uv run scripts/generate.py`)
+# and must be the NAMESPACED coordinate. The flat `ocx.sh/uv:0` is forbidden:
+# `ocx-contrib/mirror-uv` is slated for deletion and the flat name dies with the
+# `ocx.sh` host, which would leave the generator with no runtime.
+
+[tools]
+cli = "ocx.sh/ocx/cli:0.5"
+mirror = "ocx.sh/ocx/mirror:0.5"
+uv = "ocx.sh/astral-sh/uv:0"

@@ -1,0 +1,98 @@
+# Shared base for every spec in this repository (golang).
+#
+# NOT a spec: it has no name/target/source and is never loaded on its own.
+# Everything a package owns — name, target, source, assets, asset_type,
+# bin_scan, metadata, catalog, tests, versions, announce, annotations — stays
+# in that package's own mirror.yml.
+#
+# ⚠️ `extends:` is a SHALLOW merge of top-level keys. A spec that sets a key
+# below replaces that block OUTRIGHT — there is no per-key merge. `platforms:`
+# is where this bites: it carries BOTH the runner matrix and the container
+# legs, so a child that restates it to tweak one runner silently drops every
+# `containers:` entry. Nothing reds — the legs simply stop existing, and every
+# os.features claim in that spec goes back to being merely asserted. Restate
+# `platforms:` IN FULL or not at all.
+
+skip_prereleases: true
+cascade: true
+
+# Fleet default: a cascade tag (`latest`, `1`, `1.26`) re-points on every
+# re-publish, and without a build segment the new manifest would reuse the bare
+# version tag, orphaning the prior digest for registry GC — which breaks any
+# `@sha256:` pin. Go versions are bare semver (no `+build` metadata), so `date`
+# stamps cleanly; verified with `package check --dry-run` (no
+# "already has build metadata" skips).
+build_timestamp: date
+
+# No `verify:` block. `github_asset_digest` is a github_release-source option
+# and this repo's only source is `url_index` — Go publishes its binaries on
+# go.dev/dl, not GitHub Releases. The go.dev index carries a per-file `sha256`,
+# but there is no `checksums_file` document to point at, so the gap is recorded
+# here rather than assumed. Downloads are HTTPS from dl.google.com.
+
+concurrency:
+  # Go tarballs are ~60-70 MB compressed and expand to a ~250 MB tree (the
+  # toolchain plus the full stdlib source under src/ and pkg/tool/), so each
+  # bundle re-compresses far more than a single-binary CLI mirror. Limits sit
+  # between the single-binary fleet default and the JDK-sized mirrors.
+  max_downloads: 8
+  max_bundles: 4
+  max_pushes: 2
+  rate_limit_ms: 100
+  max_retries: 3
+  compression_threads: 0
+
+# ─── Platform matrix ────────────────────────────────────────────────────────
+#
+# `os.features` states what an artifact REQUIRES OF THE HOST — it is not a
+# label for how it was built. Go's Linux release binaries are statically
+# linked: byte-measured 2026-08-03 on `go` and `gofmt` from both arches'
+# go1.26.5 tarballs, all four ELFs say `statically linked` and carry no
+# PT_INTERP (evidence above the `assets:` block in go/mirror.yml). Upstream
+# publishes no musl/glibc split to choose between, so both Linux keys are
+# BARE. Tagging them `+libc.musl` would be a false requirement that hid them
+# from every glibc host.
+#
+# A bare key claims universality, so it must prove it: ubuntu (glibc) + alpine
+# (musl) + fedora (different glibc vintage). The alpine leg IS the proof —
+# drop it and the universal claim is merely asserted.
+#
+# A future package here whose libc measurement differs must restate this whole
+# block in its own spec — see the shallow-merge warning at the top.
+platforms:
+  linux/amd64:
+    runner: ubuntu-latest
+    containers:
+      - { image: "ubuntu:24.04", shell: bash }
+      - { image: "alpine:3.20",  shell: sh }
+      - { image: "fedora:40",    shell: bash }
+  linux/arm64:
+    # arm64 container legs run natively — no qemu — so the runner arch must
+    # match the platform or the renderer reds the leg up front.
+    runner: ubuntu-24.04-arm
+    containers:
+      - { image: "ubuntu:24.04", shell: bash }
+      - { image: "alpine:3.20",  shell: sh }
+      - { image: "fedora:40",    shell: bash }
+  darwin/amd64:
+    # Intel slice tested on the arm64 macos-14 runner via Rosetta 2 — GitHub's
+    # native macos-13 Intel pool is exhausted and deadlocks the push job.
+    runner: macos-14
+    prefix: ["arch", "-x86_64"]
+  darwin/arm64:
+    runner: macos-14
+    shell: bash
+  windows/amd64:
+    runner: windows-latest
+    shell: pwsh
+  windows/arm64:
+    # Native arm64 Windows runner — the amd64 pool cannot execute an ARM64 PE.
+    runner: windows-11-arm
+    shell: pwsh
+  # No `containers:` on darwin or windows — those runners have no Linux
+  # container engine, and the key is rejected at spec load.
+
+notify:
+  discord:
+    webhook_secret: OCX_MIRROR_DISCORD_HOOK
+    user_id: "227748867204972545"  # pinged in-message on failures

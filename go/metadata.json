@@ -1,0 +1,14 @@
+{
+  "type": "bundle",
+  "version": 1,
+  "binaries": ["go", "gofmt"],
+  "env": [
+    {
+      "key": "PATH",
+      "type": "path",
+      "required": true,
+      "value": "${installPath}/bin",
+      "visibility": "public"
+    }
+  ]
+}
