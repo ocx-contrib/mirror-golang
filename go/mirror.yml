@@ -53,8 +53,8 @@ source:
 # mips*/ppc64*/riscv64/s390x and BSD/aix/illumos/plan9/solaris archives; the
 # generator never emits them.
 #
-# Incremental rollout (Phase 10): linux first; darwin lands in pass 2 and
-# windows in pass 3 — uncomment below and regenerate CI.
+# Rolled out incrementally (Phase 10): linux pass 1, darwin pass 2,
+# windows pass 3 — all six platforms live since 2026-08-03.
 assets:
   linux/amd64:
     - "^go.*\\.linux-amd64\\.tar\\.gz$"
@@ -64,10 +64,10 @@ assets:
     - "^go.*\\.darwin-amd64\\.tar\\.gz$"
   darwin/arm64:
     - "^go.*\\.darwin-arm64\\.tar\\.gz$"
-  # windows/amd64:
-  #   - "^go.*\\.windows-amd64\\.zip$"
-  # windows/arm64:
-  #   - "^go.*\\.windows-arm64\\.zip$"
+  windows/amd64:
+    - "^go.*\\.windows-amd64\\.zip$"
+  windows/arm64:
+    - "^go.*\\.windows-arm64\\.zip$"
 
 asset_type:
   # Every archive wraps its payload in a single `go/` top directory with
