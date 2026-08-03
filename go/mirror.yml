@@ -60,10 +60,10 @@ assets:
     - "^go.*\\.linux-amd64\\.tar\\.gz$"
   linux/arm64:
     - "^go.*\\.linux-arm64\\.tar\\.gz$"
-  # darwin/amd64:
-  #   - "^go.*\\.darwin-amd64\\.tar\\.gz$"
-  # darwin/arm64:
-  #   - "^go.*\\.darwin-arm64\\.tar\\.gz$"
+  darwin/amd64:
+    - "^go.*\\.darwin-amd64\\.tar\\.gz$"
+  darwin/arm64:
+    - "^go.*\\.darwin-arm64\\.tar\\.gz$"
   # windows/amd64:
   #   - "^go.*\\.windows-amd64\\.zip$"
   # windows/arm64:
