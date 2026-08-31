@@ -12,6 +12,6 @@
 # `ocx.sh` host, which would leave the generator with no runtime.
 
 [tools]
-cli = "ocx.sh/ocx/cli:0.5"
-mirror = "ocx.sh/ocx/mirror:0.5"
+cli = "ocx.sh/ocx/cli:0.6"
+mirror = "ocx.sh/ocx/mirror:0.6"
 uv = "ocx.sh/astral-sh/uv:0"
